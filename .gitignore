@@ -1,0 +1,19 @@
+# 个人训练数据——不入库（这是你的私人对局记录与判断画像）
+decisions.jsonl
+profile.md
+mastery.md
+real_decisions.jsonl
+report.html
+*.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
