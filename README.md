@@ -63,6 +63,9 @@ AI：[揭示前打分·五维] → [揭示三线：史实/实际结果/对照体
 跑完一局：
 - `python stats.py` —— 终端版复盘（判断质量轨迹、最弱维、证伪缺失率、本该死/实际死）。
 - `python render.py` —— 生成离线可视化报告 `report.html`（五维雷达 / 轨迹 / 死亡对账 / 盲点清单；零依赖内联 SVG，可截图）。浏览器打开即看。
+- `python stats.py --diagnose` —— 结构化诊断（最弱维 / 复发盲点 / 证伪缺失 / 早晚趋势）。
+- `python stats.py --recommend` —— 据弱项 × 场景 `trains_dims` 推下一局（冷启动 breadth / 弱项 targeted）。
+- `python stats.py --calibrate` —— 裁判校准：固定金标决策的裁判跑分 vs 冻结金标分，测系统性偏松/偏紧与重测噪声底（仪器没校准，曲线就不可信）。
 
 ---
 

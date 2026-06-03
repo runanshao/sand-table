@@ -24,7 +24,8 @@ for _s in (sys.stdout, sys.stderr):
         pass
 
 DIMS = ["信息利用", "风险定价", "反证强度", "目标对齐", "盲点意识"]
-RULE_N = 5  # 同类样本 < RULE_N 只算"观察"，不下"规律"
+RULE_N = 5      # 同类样本 < RULE_N 只算"观察"，不下"规律"
+MIN_PER_DIM = 3  # 某维样本 < 此值 → 冷启动 breadth 模式（先铺五维，不急定向）
 
 
 def load(path: Path, scenario_filter=None):
@@ -44,6 +45,8 @@ def load(path: Path, scenario_filter=None):
             continue
         if scenario_filter and rec.get("场景") != scenario_filter:
             continue
+        if rec.get("数据有效") is False or rec.get("类型") == "校准":
+            continue  # 排除无效样本(如通电验收)与校准跑分，判断力曲线只收干净数据
         if "五维" in rec:
             anchors.append(rec)
         elif rec.get("类型") == "整局复盘":
@@ -211,14 +214,247 @@ def report_improvement(anchors, real_recs):
     print("=" * 56)
 
 
+# ========== workflow 确定性零件：诊断 / 推荐 / 校准 ==========
+
+def diagnose(anchors):
+    """确定性诊断：五维均分、最弱维、复发盲点、证伪缺失、早晚趋势。供 --diagnose 与 recommend 复用。"""
+    dims = defaultdict(list)
+    for a in anchors:
+        wd = a.get("五维", {})
+        for d in DIMS:
+            if isinstance(wd.get(d), (int, float)):
+                dims[d].append(wd[d])
+    dim_avg = {d: sum(v) / len(v) for d, v in dims.items() if v}
+    dim_n = {d: len(v) for d, v in dims.items()}
+    n = len(anchors)
+    weakest = min(dim_avg, key=dim_avg.get) if dim_avg else None
+    tagc = Counter()
+    for a in anchors:
+        for t in a.get("盲点标签", []) or []:
+            tagc[t] += 1
+    recurring = sorted([(t, c) for t, c in tagc.items() if c >= 2], key=lambda x: -x[1])
+    miss = sum(1 for a in anchors if missing_falsifier(a))
+    scored = sorted([a for a in anchors if isinstance(a.get("总分"), (int, float))],
+                    key=lambda r: (str(r.get("ts", "")), str(r.get("场景", "")), r.get("锚点", 0)))
+    trend = None
+    if len(scored) >= 4:
+        h = len(scored) // 2
+        early = sum(r["总分"] for r in scored[:h]) / h
+        late = sum(r["总分"] for r in scored[h:]) / (len(scored) - h)
+        trend = (round(early, 1), round(late, 1), round(late - early, 1))
+    return {"n": n, "dim_avg": dim_avg, "dim_n": dim_n, "weakest": weakest,
+            "recurring": recurring, "miss": miss, "trend": trend,
+            "label": "观察" if n < RULE_N else "可作定向"}
+
+
+def print_diagnose(anchors):
+    d = diagnose(anchors)
+    print("=" * 56)
+    print("判断力诊断（确定性 · diagnose）")
+    print("=" * 56)
+    if not d["dim_avg"]:
+        print("还没有可诊断的锚点。先跑几局。")
+        return
+    print(f"样本 N={d['n']}  [{d['label']}]")
+    print("\n五维均分（升序，越靠前越该练）:")
+    for dim in sorted(d["dim_avg"], key=d["dim_avg"].get):
+        print(f"  {dim}: {d['dim_avg'][dim]:.2f}  (n={d['dim_n'].get(dim, 0)})")
+    print(f"\n最弱维：【{d['weakest']}】 ← 定向出题信号")
+    if d["n"]:
+        print(f"证伪条件缺失率：{d['miss']}/{d['n']} = {d['miss'] / d['n'] * 100:.0f}%")
+    if d["recurring"]:
+        tag = "候选规律" if d["n"] >= RULE_N else "观察(n<5)"
+        print(f"\n复发盲点（≥2次，{tag}）:")
+        for t, c in d["recurring"]:
+            print(f"  ×{c}  {t}")
+    else:
+        print("\n复发盲点：暂无（无≥2次的标签）")
+    if d["trend"]:
+        e, l, delta = d["trend"]
+        arrow = "↑改善" if delta >= 0.5 else ("↓退步" if delta <= -0.5 else "→持平")
+        print(f"\n趋势：早半 {e} → 近半 {l}  {arrow} ({delta:+})")
+    else:
+        print("\n趋势：计分锚点 <4，还看不出。")
+
+
+def load_blind_library(here):
+    """读 library 下所有 *.blind.md 的 meta（trains_dims 等）。需 PyYAML；缺则返回 None。"""
+    try:
+        import yaml
+    except ImportError:
+        return None
+    lib = []
+    for p in sorted((here / "library").rglob("*.blind.md")):
+        lines = p.read_text(encoding="utf-8").splitlines()
+        if not lines or lines[0].strip() != "---":
+            continue
+        end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+        if end is None:
+            continue
+        try:
+            data = yaml.safe_load("\n".join(lines[1:end])) or {}
+        except yaml.YAMLError:
+            continue
+        meta = data.get("meta", {}) or {}
+        lib.append({"id": meta.get("id"), "title": meta.get("title"),
+                    "tier": meta.get("tier"), "trains_dims": meta.get("trains_dims", []) or []})
+    return lib
+
+
+def recommend(anchors, here):
+    """确定性下一局推荐：冷启动 breadth / 弱项 targeted，按 trains_dims 与目标维度重叠排场景。"""
+    d = diagnose(anchors)
+    lib = load_blind_library(here)
+    if lib is None:
+        return {"error": "需要 PyYAML 才能读场景 trains_dims：pip install pyyaml"}
+    dim_n = d["dim_n"]
+    undersampled = [dim for dim in DIMS if dim_n.get(dim, 0) < MIN_PER_DIM]
+    if undersampled:
+        mode, targets = "breadth", undersampled
+    else:
+        mode, targets = "targeted", ([d["weakest"]] if d["weakest"] else [])
+    ranked = []
+    for s in lib:
+        overlap = [dim for dim in s["trains_dims"] if dim in targets]
+        if overlap:
+            ranked.append((len(overlap), s, overlap))
+    ranked.sort(key=lambda x: -x[0])
+    return {"mode": mode, "targets": targets, "weakest": d["weakest"],
+            "dim_n": dim_n, "candidates": ranked, "n": d["n"]}
+
+
+def print_recommend(anchors, here):
+    r = recommend(anchors, here)
+    print("=" * 56)
+    print("下一局推荐（确定性 · recommend）")
+    print("=" * 56)
+    if "error" in r:
+        print(r["error"]); return
+    if r["mode"] == "breadth":
+        print(f"模式：breadth 冷启动（有维度样本 <{MIN_PER_DIM}，先把五维铺开、不急定向）")
+        print(f"待补样本的维度：{r['targets']}")
+    else:
+        print("模式：targeted 定向（五维样本已够）")
+        print(f"主攻最弱维：【{r['weakest']}】")
+    if not r["candidates"]:
+        print("\n场景库里没有 trains_dims 命中目标维度的场景——该补这类场景了。")
+        return
+    print("\n候选场景（按命中目标维度数排序）:")
+    for ov, s, overlap in r["candidates"]:
+        print(f"  [{ov}] {s['title']}（{s['id']}） trains={s['trains_dims']} ← 命中 {overlap}")
+    top = r["candidates"][0][1]
+    print(f"\n→ 推荐下一局：{top['title']}（{top['id']}，{top['tier']}）")
+
+
+def load_jsonl(path):
+    if not path.exists():
+        return []
+    out = []
+    for ln in path.read_text(encoding="utf-8").splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            out.append(json.loads(ln))
+        except json.JSONDecodeError:
+            continue
+    return out
+
+
+def calibrate(here):
+    """裁判校准：固定金标决策的裁判跑分 vs 冻结金标分，测系统性偏移(松/紧)与重测噪声底。
+    gold=calibration.jsonl（入库）；runs=calibration_runs.jsonl（个人，跑校准模式时追加，带 case_id）。"""
+    from statistics import mean, pstdev
+    gold = {g["case_id"]: g for g in load_jsonl(here / "calibration.jsonl")}
+    runs = load_jsonl(here / "calibration_runs.jsonl")
+    out = {"gold_n": len(gold), "run_n": len(runs), "cases": [],
+           "overall_bias": None, "noise_floor": None, "dim_bias": {}}
+    if not gold or not runs:
+        return out
+    per_case_bias = []
+    dim_diffs = defaultdict(list)
+    for cid, g in gold.items():
+        rs = [r for r in runs if r.get("case_id") == cid and isinstance(r.get("总分"), (int, float))]
+        if not rs:
+            continue
+        totals = [r["总分"] for r in rs]
+        bias = mean(totals) - g.get("gold总分", 0)
+        spread = pstdev(totals) if len(totals) >= 2 else None
+        per_case_bias.append(bias)
+        for dim in DIMS:
+            gv = g.get("gold五维", {}).get(dim)
+            jv = [r["五维"][dim] for r in rs
+                  if isinstance(r.get("五维", {}).get(dim), (int, float))]
+            if isinstance(gv, (int, float)) and jv:
+                dim_diffs[dim].append(mean(jv) - gv)
+        out["cases"].append({"case_id": cid, "gold": g.get("gold总分"),
+                             "judge_mean": round(mean(totals), 2), "bias": round(bias, 2),
+                             "retest_spread": (round(spread, 2) if spread is not None else None),
+                             "runs": len(totals)})
+    if per_case_bias:
+        out["overall_bias"] = round(mean(per_case_bias), 2)
+        spreads = [c["retest_spread"] for c in out["cases"] if c["retest_spread"] is not None]
+        out["noise_floor"] = round(max(spreads), 2) if spreads else None
+        out["dim_bias"] = {dim: round(mean(v), 2) for dim, v in dim_diffs.items()}
+    return out
+
+
+def print_calibrate(here):
+    c = calibrate(here)
+    print("=" * 56)
+    print("裁判校准（确定性 · calibrate）—— 仪器没校准，曲线就不可信")
+    print("=" * 56)
+    print(f"金标 {c['gold_n']} 例 ｜ 校准跑分 {c['run_n']} 条")
+    if not c["cases"]:
+        print("\n还没有可比对的校准跑分。跑法：")
+        print("  进入「校准模式」，让裁判盲评 calibration.jsonl 里每个固定决策，")
+        print("  把它的五维+总分追加进 calibration_runs.jsonl（带同一 case_id），再跑本命令。")
+        return
+    print("\n逐例（裁判均分 vs 金标，bias>0=偏松）:")
+    for x in c["cases"]:
+        sp = f"，重测波动±{x['retest_spread']}" if x["retest_spread"] is not None else ""
+        print(f"  {x['case_id']}: 金标{x['gold']} / 裁判{x['judge_mean']}  bias {x['bias']:+}{sp}  (n={x['runs']})")
+    print(f"\n总体偏移：{c['overall_bias']:+}"
+          f"（裁判系统性{'偏松' if c['overall_bias'] > 0 else ('偏紧' if c['overall_bias'] < 0 else '居中')}）")
+    if c["noise_floor"] is not None:
+        print(f"重测噪声底：±{c['noise_floor']} —— 判断质量变化小于这个数，是裁判抖动、不是你真变了")
+    if c["dim_bias"]:
+        print("分维偏移:", "  ".join(f"{k}{v:+}" for k, v in c["dim_bias"].items()))
+    if c["run_n"] < RULE_N:
+        print(f"\n诚实：校准跑分 {c['run_n']}<{RULE_N}，以上为『观察』非定论，多跑几轮才算数。")
+    print("\n用法：把'总体偏移'从本期判断力曲线里扣掉，才是去偏后的真趋势。")
+
+
+# ========== CLI ==========
+
 def main():
     args = [a for a in sys.argv[1:]]
+    here = Path(__file__).resolve().parent
+    flags = {f for f in ("--diagnose", "--recommend", "--calibrate") if f in args}
+    for f in flags:
+        args.remove(f)
     scenario = None
     if "--scenario" in args:
         i = args.index("--scenario")
         scenario = args[i + 1] if i + 1 < len(args) else None
         del args[i:i + 2]
-    path = Path(args[0]) if args else Path(__file__).with_name("decisions.jsonl")
+    path = Path(args[0]) if args else here / "decisions.jsonl"
+
+    ran = False
+    if "--calibrate" in flags:
+        print_calibrate(here)
+        ran = True
+    if flags & {"--diagnose", "--recommend"}:
+        anchors, _ = load(path, scenario)
+        if "--diagnose" in flags:
+            print_diagnose(anchors)
+        if "--recommend" in flags:
+            print_recommend(anchors, here)
+        ran = True
+    if ran:
+        return
+
+    # 默认：完整复盘
     anchors, summaries = load(path, scenario)
     real_name = "real_decisions.example.jsonl" if path.name.endswith(".example.jsonl") else "real_decisions.jsonl"
     real_recs = load_real(path.with_name(real_name))

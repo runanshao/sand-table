@@ -3,8 +3,10 @@ decisions.jsonl
 profile.md
 mastery.md
 real_decisions.jsonl
+calibration_runs.jsonl
 report.html
 *.local
+# 注：calibration.jsonl（共享金标集）入库；calibration_runs.jsonl（个人裁判跑分）忽略
 
 # Python
 __pycache__/
