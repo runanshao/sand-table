@@ -65,7 +65,8 @@ argument-hint: "[场景名 / 历史人物 / 一段你想推演的历史，或留
 - **写序铁规（最重要，比"永不看见"更强）**：某锚点的五维评分**必须先 append 进 `decisions.jsonl`，才允许调用 historian / 生成揭示**。分数落盘即定稿——哪怕之后看到结局想加分，那行已在磁盘上、已进 stats.py 曲线，改不动。这条可验证、不靠自律。
 - **档位分流**（护住高频命门）：**精推**走物理墙（派 historian 子 agent）；**快推**为保两秒一笔的频率，主控可直接读 sealed 揭示，但**写序铁规照样守**（先 append 分数，再揭示）。
 - **新增场景先过闸**：`python scenario_lint.py` 必须 PASS（词表不漂移 / 盲封不泄题 / 出处不缺 / 诱饵在 / 锚点对齐）才进 library。
-- **未拆分的旧场景**（夷陵 / 于谦 / 古巴等仍是单文件）沿用旧纪律墙，直到逐个迁移到 blind/sealed。
+- **未拆分的旧场景**（于谦 / 古巴等仍是单文件）沿用旧纪律墙，直到逐个迁移到 blind/sealed。
+- **historian 的安装**：其定义随库发布在 `agents/historian.md`（source-of-truth）；Claude Code 只从 `~/.claude/agents/` 发现 agent，故须复制过去才生效（见 README 安装）。两处保持逐字一致，防双源漂移。
 
 ---
 

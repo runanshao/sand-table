@@ -32,10 +32,21 @@
 
 ```bash
 git clone <this-repo> ~/.claude/skills/史鉴推演
+# 物理隔离墙（已结构化场景的史实揭示）依赖 historian 子 agent。
+# Claude Code 只从 ~/.claude/agents/ 发现 agent，故把随库发布的那份装过去
+#（库内 agents/historian.md 是 source-of-truth）：
+cp ~/.claude/skills/史鉴推演/agents/historian.md ~/.claude/agents/historian.md
+```
+Windows PowerShell：
+```powershell
+git clone <this-repo> $HOME\.claude\skills\史鉴推演
+Copy-Item $HOME\.claude\skills\史鉴推演\agents\historian.md $HOME\.claude\agents\historian.md
 ```
 重启 Claude Code 后，对它说 `史鉴推演 官渡` 或 `把我放进于谦的北京保卫战`。
 
-> 需要 Python 3.8+（仅用于 `stats.py` 确定性复盘，纯标准库、无第三方依赖）。
+> **没装 historian 也能玩**：未结构化的旧场景走纪律墙；但已结构化场景（官渡/夷陵）的精推揭示需要它，否则物理墙断成半截。
+>
+> 需要 Python 3.8+。`stats.py` / `render.py` 纯标准库、零依赖；`scenario_lint.py`（新增场景时校验）需 PyYAML：`pip install pyyaml`。
 
 ---
 
@@ -74,6 +85,9 @@ AI：[揭示前打分·五维] → [揭示三线：史实/实际结果/对照体
     intl/cuban-missile-crisis.md  场景：古巴导弹危机（ExComm 记录）
   stats.py                 确定性复盘（终端，无三方依赖）
   render.py                可视化复盘 → report.html（离线内联 SVG，无三方依赖）
+  scenario_lint.py         场景校验器（blind/sealed schema 闸门 · 需 PyYAML）
+  agents/
+    historian.md           史官子 agent（物理墙·读 sealed 揭示）→ 安装时复制到 ~/.claude/agents/
   mastery.example.md       判断力掌握清单（课程表）模板
   profile.example.md       判断力档案模板
   decisions.example.jsonl  决策日志样例
