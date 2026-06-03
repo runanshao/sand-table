@@ -66,8 +66,10 @@ AI：[揭示前打分·五维] → [揭示三线：史实/实际结果/对照体
     adjudication.md         反事实裁定（因果+基率+置信度+何时致死）
   library/
     CATALOG.md             选题菜单（按朝代：商/周/春秋战国/秦汉/三国/隋唐/宋/明/清 + 国外）
-    caocao/guandu.md       场景：官渡之战（《三国志》）
-    sanguo/yiling.md       场景：夷陵之战（《三国志》）
+    caocao/guandu.blind.md   场景·盲区：官渡之战（情境官只读这个）
+    caocao/guandu.sealed.md  场景·封存：官渡史实/出处/致死/对照体（historian 子 agent 读）
+    sanguo/yiling.blind.md   场景·盲区：夷陵之战（情境官只读这个）
+    sanguo/yiling.sealed.md  场景·封存：夷陵史实/出处/致死/对照体（historian 子 agent 读）
     ming/yuqian-beijing.md  场景：于谦·北京保卫战（《明史》）
     intl/cuban-missile-crisis.md  场景：古巴导弹危机（ExComm 记录）
   stats.py                 确定性复盘（终端，无三方依赖）
