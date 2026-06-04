@@ -84,7 +84,8 @@ AI：[揭示前打分·五维] → [揭示三线：史实/实际结果/对照体
     caocao/guandu.sealed.md  场景·封存：官渡史实/出处/致死/对照体（historian 子 agent 读）
     sanguo/yiling.blind.md   场景·盲区：夷陵之战（情境官只读这个）
     sanguo/yiling.sealed.md  场景·封存：夷陵史实/出处/致死/对照体（historian 子 agent 读）
-    ming/yuqian-beijing.md  场景：于谦·北京保卫战（《明史》）
+    ming/yuqian-beijing.blind.md   场景·盲区：于谦·北京保卫战（《明史》）
+    ming/yuqian-beijing.sealed.md  场景·封存：北京保卫战史实/出处/致死/对照体
     intl/cuban-missile-crisis.md  场景：古巴导弹危机（ExComm 记录）
   stats.py                 确定性复盘（终端，无三方依赖）
   render.py                可视化复盘 → report.html（离线内联 SVG，无三方依赖）

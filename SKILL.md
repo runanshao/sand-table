@@ -65,7 +65,7 @@ argument-hint: "[场景名 / 历史人物 / 一段你想推演的历史，或留
 - **写序铁规（最重要，比"永不看见"更强）**：某锚点的五维评分**必须先 append 进 `decisions.jsonl`，才允许调用 historian / 生成揭示**。分数落盘即定稿——哪怕之后看到结局想加分，那行已在磁盘上、已进 stats.py 曲线，改不动。这条可验证、不靠自律。
 - **档位分流**（护住高频命门）：**精推**走物理墙（派 historian 子 agent）；**快推**为保两秒一笔的频率，主控可直接读 sealed 揭示，但**写序铁规照样守**（先 append 分数，再揭示）。
 - **新增场景先过闸**：`python scenario_lint.py` 必须 PASS（词表不漂移 / 盲封不泄题 / 出处不缺 / 诱饵在 / 锚点对齐）才进 library。
-- **未拆分的旧场景**（于谦 / 古巴等仍是单文件）沿用旧纪律墙，直到逐个迁移到 blind/sealed。
+- **未拆分的旧场景**（古巴等仍是单文件）沿用旧纪律墙，直到逐个迁移到 blind/sealed。
 - **historian 的安装**：其定义随库发布在 `agents/historian.md`（source-of-truth）；Claude Code 只从 `~/.claude/agents/` 发现 agent，故须复制过去才生效（见 README 安装）。两处保持逐字一致，防双源漂移。
 
 ---
@@ -157,7 +157,7 @@ argument-hint: "[场景名 / 历史人物 / 一段你想推演的历史，或留
 - **国内**
   - [官渡之战](library/caocao/guandu.blind.md)（曹操，三国，《三国志》）**【已结构化 · blind/sealed + historian 物理墙】**— 粮尽要不要退、信不信叛将、敢不敢押注奇袭。
   - [夷陵之战](library/sanguo/yiling.blind.md)（刘备，三国，《三国志》）**【已结构化 · blind/sealed + historian 物理墙】**— 伐不伐吴、张飞之死（诱饵）、连不连营、顿兵要不要退。专练目标对齐/情绪劫持。
-  - [于谦·北京保卫战](library/ming/yuqian-beijing.md)（1449，明，《明史》）— 南迁还是死守、要不要立新君、出城还是闭门。
+  - [于谦·北京保卫战](library/ming/yuqian-beijing.blind.md)（1449，明，《明史》）**【已结构化 · blind/sealed + historian 物理墙】**— 南迁还是死守、午门血案（诱饵）、要不要立新君、出城还是闭门、以英宗为饵。专练"判断质量≠个人结果"。
 - **国外**
   - [古巴导弹危机](library/intl/cuban-missile-crisis.md)（1962，肯尼迪）— 空袭还是封锁、封锁线对峙、两封电报。专练风险定价/不可逆/反证。
 - **选题菜单（持续扩充）**：更多国内/国外候选见 [library/CATALOG.md](library/CATALOG.md)（含主练维度、史源、演义污染警告）。用户点名其一，我按 `references/scenario-format.md` 现场建全套——**只建史料扎实的，绝不为凑数编造**。

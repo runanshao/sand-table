@@ -6,7 +6,7 @@
 
 ## 已建（playable）
 - 官渡之战（曹操，三国）— 《三国志》— `library/caocao/guandu.blind.md` + `guandu.sealed.md`【已结构化 · 过 scenario_lint】
-- 于谦·北京保卫战（明）— 《明史》— `library/ming/yuqian-beijing.md`
+- 于谦·北京保卫战（明）— 《明史》— `library/ming/yuqian-beijing.blind.md` + `.sealed.md`【已结构化 · 过 scenario_lint · 含午门血案诱饵锚】
 - 古巴导弹危机（肯尼迪，国外）— ExComm 记录 — `library/intl/cuban-missile-crisis.md`
 - 夷陵之战（刘备，三国）— 《三国志》— `library/sanguo/yiling.blind.md` + `yiling.sealed.md`【已结构化 · 过 scenario_lint · 含张飞之死诱饵锚】
 
