@@ -9,6 +9,8 @@
   3) 出处不缺失        —— 每条 ground_truth 必带 citations，confidence ∈ {high,med,low,unknown}
   4) 诱饵必在          —— 至少一个锚点 is_real_turning_point: false（对抗"每刻皆史诗"选题偏差）
   5) 结构一致          —— 字段齐全、锚点连续、blind 与 sealed 锚点 1:1 对齐
+  6) v2 资源盘合规     —— scenario-blind/v2 须有 assets 六类齐全、人和逐人字段齐全（谋主沙盘模式地基）；
+                          blind v2 必须配 sealed v2（execution_friction 才有处可封）
 
 过不了这道闸，场景就进不了 library。新增 100 个场景也因此结构一致、可被调度器调用。
 
@@ -46,7 +48,14 @@ SEALED_TOKENS = [
     "actual_choice", "actual_outcome", "ground_truth", "citations",
     "transferable_principle", "counterfactual_model", "lethal",
     "fiction_vs_fact", "council", "史实选择", "可迁移原则", "致死",
+    "execution_friction",
 ]
+
+BLIND_SCHEMAS = {"scenario-blind/v1", "scenario-blind/v2"}
+SEALED_SCHEMAS = {"scenario-sealed/v1", "scenario-sealed/v2"}
+# v2 资源盘：六类资源 + 人和逐人属性（"人不会丝滑执行意图"的结构化载体）
+ASSET_KEYS = ["天时", "地利", "兵粮", "利益网", "掣肘", "人和"]
+PERSON_KEYS = ["名", "角色", "能力", "你以为的忠诚", "私利", "掣肘", "反噬信号"]
 
 
 def parse_frontmatter(path: Path):
@@ -74,8 +83,30 @@ def check_blind(path: Path, errs: list):
         errs.append("frontmatter 不是映射结构")
         return None
 
-    if data.get("schema") != "scenario-blind/v1":
-        errs.append(f"schema 应为 scenario-blind/v1，实为 {data.get('schema')!r}")
+    schema = data.get("schema")
+    if schema not in BLIND_SCHEMAS:
+        errs.append(f"schema 应 ∈ {sorted(BLIND_SCHEMAS)}，实为 {schema!r}")
+    is_v2 = schema == "scenario-blind/v2"
+
+    # —— v2 资源盘闸门：六类齐全，人和逐人字段齐全 ——
+    if is_v2:
+        assets = data.get("assets")
+        if not isinstance(assets, dict):
+            errs.append("v2 须有顶层 assets（资源盘），且为映射结构")
+        else:
+            for k in ASSET_KEYS:
+                v = assets.get(k)
+                if not isinstance(v, list) or not v:
+                    errs.append(f"assets.{k} 缺失或非非空列表")
+            for i, p in enumerate(assets.get("人和") or [], 1):
+                if not isinstance(p, dict):
+                    errs.append(f"assets.人和[{i}] 不是映射结构")
+                    continue
+                missing = [k for k in PERSON_KEYS if not p.get(k)]
+                if missing:
+                    errs.append(f"assets.人和[{i}]（{p.get('名', '?')}）缺字段：{missing}")
+    elif data.get("assets") is not None:
+        errs.append("v1 不应有 assets；要用资源盘请升 schema 到 scenario-blind/v2")
 
     meta = data.get("meta") or {}
     for k in ("id", "title", "protagonist", "goal", "tier", "trains_dims", "source_anchor"):
@@ -129,7 +160,7 @@ def check_blind(path: Path, errs: list):
     if leaked:
         errs.append(f"blind 文件疑似泄题，出现封存字段/词：{leaked}")
 
-    return {"id": meta.get("id"), "anchor_ids": ids}
+    return {"id": meta.get("id"), "anchor_ids": ids, "is_v2": is_v2}
 
 
 def check_sealed(path: Path, blind_info, errs: list):
@@ -141,8 +172,11 @@ def check_sealed(path: Path, blind_info, errs: list):
         errs.append("sealed frontmatter 不是映射结构")
         return
 
-    if data.get("schema") != "scenario-sealed/v1":
-        errs.append(f"sealed.schema 应为 scenario-sealed/v1，实为 {data.get('schema')!r}")
+    schema = data.get("schema")
+    if schema not in SEALED_SCHEMAS:
+        errs.append(f"sealed.schema 应 ∈ {sorted(SEALED_SCHEMAS)}，实为 {schema!r}")
+    if blind_info and blind_info.get("is_v2") and schema != "scenario-sealed/v2":
+        errs.append("blind 是 v2（带资源盘），sealed 必须同升 scenario-sealed/v2（封 execution_friction）")
 
     if blind_info and data.get("scenario_id") != blind_info["id"]:
         errs.append(f"scenario_id({data.get('scenario_id')!r}) 与 blind.meta.id({blind_info['id']!r}) 不一致")
@@ -151,6 +185,11 @@ def check_sealed(path: Path, blind_info, errs: list):
     gt_ids = [g.get("anchor_id") for g in gt]
     if blind_info and sorted(gt_ids) != sorted(blind_info["anchor_ids"]):
         errs.append(f"ground_truth 锚点 {gt_ids} 与 blind 锚点 {blind_info['anchor_ids']} 未 1:1 对齐")
+
+    if schema == "scenario-sealed/v2":
+        with_friction = [g for g in gt if g.get("execution_friction")]
+        if not with_friction:
+            errs.append("sealed v2 须至少一个锚点带 execution_friction（否则资源盘没有对账面）")
 
     for g in gt:
         tag = f"史实锚{g.get('anchor_id')}"

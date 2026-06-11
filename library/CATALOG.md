@@ -5,10 +5,11 @@
 > 每条按 `references/scenario-format.md` 建全套（信息边界卡 / 史源+置信度 / 诱饵 / 致死条件 / 可迁移原则）。
 
 ## 已建（playable）
-- 官渡之战（曹操，三国）— 《三国志》— `library/caocao/guandu.blind.md` + `guandu.sealed.md`【已结构化 · 过 scenario_lint】
+- 官渡之战 · 曹操席（三国）— 《三国志》— `library/caocao/guandu.blind.md` + `guandu.sealed.md`【v2 · 资源盘 · 谋主沙盘可开】
+- 官渡之战 · 袁绍席（三国）— 《三国志》《后汉书》— `library/yuanshao/guandu-yuanshao.blind.md` + `.sealed.md`【v2 · 资源盘 · 谋主沙盘可开 · 含文丑追击诱饵锚 · 专练"人有属性会反噬"】
 - 于谦·北京保卫战（明）— 《明史》— `library/ming/yuqian-beijing.blind.md` + `.sealed.md`【已结构化 · 过 scenario_lint · 含午门血案诱饵锚】
 - 古巴导弹危机（肯尼迪，国外）— ExComm 记录 — `library/intl/cuban-missile-crisis.md`
-- 夷陵之战（刘备，三国）— 《三国志》— `library/sanguo/yiling.blind.md` + `yiling.sealed.md`【已结构化 · 过 scenario_lint · 含张飞之死诱饵锚】
+- 夷陵之战 · 刘备席（三国）— 《三国志》— `library/sanguo/yiling.blind.md` + `yiling.sealed.md`【v2 · 资源盘 · 谋主沙盘可开 · 含张飞之死诱饵锚】
 
 ---
 

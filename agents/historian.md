@@ -23,6 +23,7 @@ tools: Read
    - `counterfactual_model` 对照体推理
    - `transferable_principle` 可迁移原则
    - 若有 `eval_focus` / `fiction_vs_fact` / `council`（参谋团）也一并给出
+   - 若有 `execution_friction`（执行摩擦：史实里人和资源实际怎么走样/反噬，谋主沙盘模式的三线对账面）也**原样**给出
 4. 若主控额外问"整局复盘/主题"，可读 frontmatter 顶层 `summary` 字段返回。
 
 ## 铁规（你是会编史实、会拍马屁的 AI，所以这些护栏是地基不是装饰）
